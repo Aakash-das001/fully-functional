@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Colored Fraction Grid with Table & Draggable Total</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #eef7ff;
+    padding: 20px;
+}
+.container {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    align-items: flex-start;
+}
+canvas {
+    border: 2px solid #333;
+}
+#info {
+    font-size: 20px;
+    margin-top: 20px;
+}
+.fraction-color {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.color-box {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    border: 1px solid #000;
+}
+table {
+    border-collapse: collapse;
+    font-size: 18px;
+    margin-top: 10px;
+}
+table, th, td {
+    border: 1px solid #000;
+    padding: 5px 10px;
+    text-align: center;
+}
+th {
+    background-color: #cce5ff;
+}
+.dropCell {
+    width: 50px;
+    height: 40px;
+    border: 2px dashed #000;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: grab;
+}
+.digits {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.dragDigit {
+    width: 35px;
+    height: 35px;
+    background: #fff;
+    border: 2px solid black;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: grab;
+}
+.checkAnswerBtn, .nextQuestionBtn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 18px;
+    background: #0066ff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+#feedback {
+    margin-top: 10px;
+    font-size: 18px;
+}
+</style>
+</head>
+<body>
+
+<h1>Place Value Table of Decimal Number
+</h1>
+
+<div class="container">
+
+    <!-- GRID CANVAS -->
+    <div>
+        <canvas id="gridCanvas" width="500" height="500"></canvas>
+        <div id="info">
+            <div class="fraction-color">
+                <div class="color-box" style="background:red"></div> 
+                <span>Red  <span id="redDecimal"></span></span>
+                <div class="color-box" style="background:green"></div> 
+                <span>Green  <span id="greenDecimal"></span></span>
+                <div class="color-box" style="background:blue"></div> 
+                <span>Blue  <span id="blueDecimal"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div>
+        <h3>Alternative Method</h3>
+        <table>
+            <tr>
+                <th>Fraction</th>
+                <th>Decimal</th>
+                <th>Ones</th>
+                <th>Tenths</th>
+                <th>Hundredths</th>
+            </tr>
+
+            <tr>
+                <td id="redFractionText">Red: </td>
+                <td id="redTableDecimal"></td>
+                <td><div class="dropCell" id="redOnes"></div></td>
+                <td><div class="dropCell" id="redTenths"></div></td>
+                <td><div class="dropCell" id="redHundredths"></div></td>
+            </tr>
+
+            <tr>
+                <td id="greenFractionText">Green: </td>
+                <td id="greenTableDecimal"></td>
+                <td><div class="dropCell" id="greenOnes"></div></td>
+                <td><div class="dropCell" id="greenTenths"></div></td>
+                <td><div class="dropCell" id="greenHundredths"></div></td>
+            </tr>
+
+            <tr>
+                <td id="blueFractionText">Blue: </td>
+                <td id="blueTableDecimal"></td>
+                <td><div class="dropCell" id="blueOnes"></div></td>
+                <td><div class="dropCell" id="blueTenths"></div></td>
+                <td><div class="dropCell" id="blueHundredths"></div></td>
+            </tr>
+
+            <tr>
+                <td><b>Total</b></td>
+                <td id="totalTableDecimal"></td>
+                <td><div class="dropCell" id="totalOnes"></div></td>
+                <td><div class="dropCell" id="totalTenths"></div></td>
+                <td><div class="dropCell" id="totalHundredths"></div></td>
+            </tr>
+        </table>
+
+        <div class="digits" id="digitBank"></div>
+        <button class="checkAnswerBtn">Check Answer</button>
+        <button class="nextQuestionBtn">Next Question</button>
+        <div id="feedback"></div>
+    </div>
+</div>
+
+<script>
+// Canvas setup
+const canvas = document.getElementById("gridCanvas");
+const ctx = canvas.getContext("2d");
+const cellSize = 50;
+let redCells=[], greenCells=[], blueCells=[];
+
+function drawGrid(){
+    ctx.clearRect(0,0,500,500);
+    for(let r=0;r<10;r++){
+        for(let c=0;c<10;c++){
+            let color="white";
+            if(redCells.some(b=>b.r===r && b.c===c)) color="red";
+            if(greenCells.some(b=>b.r===r && b.c===c)) color="green";
+            if(blueCells.some(b=>b.r===r && b.c===c)) color="blue";
+            ctx.fillStyle=color;
+            ctx.fillRect(c*cellSize,r*cellSize,cellSize,cellSize);
+            ctx.strokeRect(c*cellSize,r*cellSize,cellSize,cellSize);
+        }
+    }
+    document.getElementById("redDecimal").textContent="";
+    document.getElementById("greenDecimal").textContent="";
+    document.getElementById("blueDecimal").textContent="";
+}
+
+// Digit bank
+function buildDigits(){
+    const bank=document.getElementById("digitBank");
+    bank.innerHTML="";
+    for(let i=0;i<=9;i++){
+        const d=document.createElement("div");
+        d.className="dragDigit";
+        d.textContent=i;
+        d.draggable=true;
+        d.addEventListener("dragstart", dragDigit);
+        bank.appendChild(d);
+    }
+}
+buildDigits();
+
+// Drag-drop
+function allowDrop(ev){ ev.preventDefault(); }
+function dragDigit(ev){ ev.dataTransfer.setData("text", ev.target.textContent); }
+
+function dropBox(ev){
+    ev.preventDefault();
+    const digit = parseInt(ev.dataTransfer.getData("text"));
+    const prev = ev.target.textContent || "";
+    const correctVals = window.currentCorrectVals || {};
+
+    if(correctVals.hasOwnProperty(ev.target.id) && parseInt(digit)!==correctVals[ev.target.id]){
+        ev.target.style.background="red";
+        document.getElementById("feedback").textContent="Incorrect!";
+        document.getElementById("feedback").style.color="red";
+        setTimeout(()=>{
+            ev.target.style.background="";
+            ev.target.textContent = prev;
+            document.getElementById("feedback").textContent="";
+        },1500);
+    } else {
+        ev.target.textContent = digit;
+        ev.target.style.background="";
+        document.getElementById("feedback").textContent="";
+    }
+
+    updateRowDecimal(ev.target.id);
+    updateTotalDecimal();
+}
+
+// Attach drag-drop to all dropCells dynamically
+document.querySelectorAll(".dropCell").forEach(cell=>{
+    cell.addEventListener("dragover", allowDrop);
+    cell.addEventListener("drop", dropBox);
+});
+
+// Update row decimal if all digits correct
+function updateRowDecimal(targetId){
+    const rows = {red:["redOnes","redTenths","redHundredths"],
+                  green:["greenOnes","greenTenths","greenHundredths"],
+                  blue:["blueOnes","blueTenths","blueHundredths"]};
+
+    for(let color in rows){
+        if(rows[color].includes(targetId)){
+            let correct = rows[color].every(cell => parseInt(document.getElementById(cell).textContent||-1)===window.currentCorrectVals[cell]);
+            document.getElementById(color+"TableDecimal").textContent = correct ? window.currentDecimals[color] : "";
+        }
+    }
+}
+
+// Total decimal visible only if all total digits correct
+function updateTotalDecimal(){
+    const ids = ["totalOnes","totalTenths","totalHundredths"];
+    let allCorrect = ids.every(id=>parseInt(document.getElementById(id).textContent||-1)===window.currentCorrectVals[id]);
+    if(allCorrect){
+        const ones = parseInt(document.getElementById("totalOnes").textContent||0);
+        const tenths = parseInt(document.getElementById("totalTenths").textContent||0);
+        const hundredths = parseInt(document.getElementById("totalHundredths").textContent||0);
+        document.getElementById("totalTableDecimal").textContent = `${ones}.${tenths}${hundredths}`;
+    } else document.getElementById("totalTableDecimal").textContent = "0.00";
+}
+
+// Check Answer
+function checkAnswer(){
+    let correct=true;
+    for(let id in window.currentCorrectVals){
+        const val = parseInt(document.getElementById(id).textContent || "-1");
+        if(val!==window.currentCorrectVals[id]){
+            document.getElementById(id).style.color="red";
+            correct=false;
+        } else document.getElementById(id).style.color="black";
+    }
+    const fb=document.getElementById("feedback");
+    fb.textContent = correct ? "Correct!" : "Some digits are incorrect!";
+    fb.style.color = correct ? "green" : "red";
+}
+
+// Attach checkAnswer to the button by class name
+document.querySelector(".checkAnswerBtn").addEventListener("click", checkAnswer);
+
+// Generate new question
+function generateQuestion(){
+    const greenNum = Math.floor(Math.random()*30)+1;
+    const redNum = Math.floor(Math.random()*30)+1;
+    const blueNum = Math.floor(Math.random()*40)+1;
+
+    redCells=[]; greenCells=[]; blueCells=[];
+
+    let r=0,c=0; for(let i=0;i<greenNum;i++){ greenCells.push({r,c}); c++; if(c>9){c=0;r++; if(r>2)r=2;} }
+    r=3;c=0; for(let i=0;i<redNum;i++){ redCells.push({r,c}); c++; if(c>9){c=0;r++; if(r>5)r=5;} }
+    r=6;c=0; for(let i=0;i<blueNum;i++){ blueCells.push({r,c}); c++; if(c>9){c=0;r++; if(r>9)r=9;} }
+
+    drawGrid();
+
+    document.getElementById("redFractionText").textContent = `Red: ${redNum}/100`;
+    document.getElementById("greenFractionText").textContent = `Green: ${greenNum}/100`;
+    document.getElementById("blueFractionText").textContent = `Blue: ${blueNum}/100`;
+
+    window.currentCorrectVals = {
+        redOnes:0, redTenths:Math.floor(redNum/10), redHundredths:redNum%10,
+        greenOnes:0, greenTenths:Math.floor(greenNum/10), greenHundredths:greenNum%10,
+        blueOnes:0, blueTenths:Math.floor(blueNum/10), blueHundredths:blueNum%10,
+        totalOnes:0, totalTenths:Math.floor((redNum+greenNum+blueNum)/10), totalHundredths:(redNum+greenNum+blueNum)%10
+    };
+
+    window.currentDecimals = {
+        red:(redNum/100).toFixed(2),
+        green:(greenNum/100).toFixed(2),
+        blue:(blueNum/100).toFixed(2)
+    };
+
+    ["red","green","blue","total"].forEach(color=>{
+        ["Ones","Tenths","Hundredths"].forEach(place=>{
+            const id=color+place;
+            document.getElementById(id).textContent="";
+            document.getElementById(id).style.color="black";
+        });
+        if(color!=="total") document.getElementById(color+"TableDecimal").textContent="";
+        else document.getElementById("totalTableDecimal").textContent="";
+    });
+    document.getElementById("feedback").textContent="";
+}
+
+// Attach Next Question button by class name
+document.querySelectorAll(".nextQuestionBtn").forEach(btn=>{
+    btn.addEventListener("click", generateQuestion);
+});
+
+// Initial question
+generateQuestion();
+</script>
+</body>
+</html>
